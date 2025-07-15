@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - '5672:5672'   
+      - '15672:15672' 
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - backend_net
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: projeto-bayles-app
+    ports:
+      - '3000:3000'
+    env_file:
+      - ../.env
+    depends_on:
+      - rabbitmq
+    networks:
+      - backend_net
+    volumes:
+      - ../src:/usr/src/app/src
+      - ../package.json:/usr/src/app/package.json
+      - ../package-lock.json:/usr/src/app/package-lock.json
+      - ../.env:/usr/src/app/.env
+
+networks:
+  backend_net:
+    driver: bridge

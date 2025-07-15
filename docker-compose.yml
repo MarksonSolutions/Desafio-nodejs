@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq-bayles
+    restart: unless-stopped
+    ports:
+      - '5672:5672'   # AMQP protocol / TO SUBINDO NESSA PORTA, POR QUE JA TENHO SERVIÇO RABBITMQ RODANDO NA PORTA 5672
+      - '15672:15672' # Management UI / TO SUBINDO NESSA PORTA, POR QUE JA TENHO SERVIÇO RABBITMQ RODANDO NA PORTA 15672
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_logs:/var/log/rabbitmq
+    networks:
+      - bayles_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: projeto-bayles-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      RABBITMQ_VHOST: /
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      RATE_LIMIT_WINDOW: 15
+      RATE_LIMIT_MAX_REQUESTS: 100
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bayles_network
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./package.json:/usr/src/app/package.json
+      - ./package-lock.json:/usr/src/app/package-lock.json
+      - ./logs:/usr/src/app/logs
+    command: npm run dev
+
+volumes:
+  rabbitmq_data:
+    driver: local
+  rabbitmq_logs:
+    driver: local
+
+networks:
+  bayles_network:
+    driver: bridge 
